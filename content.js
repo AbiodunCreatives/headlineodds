@@ -196,23 +196,23 @@
 
     renderMarket(current);
 
-    // Position card near pill
+    // Position card directly under pill
     const rect = pill.getBoundingClientRect();
     card.style.position = "fixed";
     card.style.zIndex = "2147483647";
     document.body.appendChild(card);
 
     const cardRect = card.getBoundingClientRect();
-    let top = rect.bottom + 8;
+    let top = rect.bottom + 6;
     let left = rect.left;
 
     if (top + cardRect.height > window.innerHeight) {
-      top = rect.top - cardRect.height - 8;
+      top = rect.top - cardRect.height - 6;
     }
     if (left + cardRect.width > window.innerWidth) {
-      left = window.innerWidth - cardRect.width - 16;
+      left = window.innerWidth - cardRect.width - 10;
     }
-    if (left < 8) left = 8;
+    if (left < 6) left = 6;
 
     card.style.top = `${top}px`;
     card.style.left = `${left}px`;
