@@ -578,6 +578,10 @@
   color: #a9b1ac;
   margin-bottom: 8px;
 }
+.kalshi-meta-strong {
+  font-weight: 700;
+  color: #f5f6f5;
+}
 
 .kalshi-market-link {
   display: inline-flex;

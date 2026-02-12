@@ -171,7 +171,7 @@
       const noPrice = m.no_bid != null ? m.no_bid : yesPrice != null ? 100 - yesPrice : null;
       const yesPct = yesPrice != null ? `${yesPrice}\u00a2` : "—";
       const noPct = noPrice != null ? `${noPrice}\u00a2` : "—";
-      const vol = m.volume != null ? m.volume.toLocaleString() : "—";
+      const vol = m.volume != null ? `$${m.volume.toLocaleString()}` : "—";
       const closeDate = m.close_time
         ? new Date(m.close_time).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
         : "—";
@@ -195,7 +195,7 @@
             </a>
           </div>
           <div class="kalshi-market-meta">
-            <span>Vol: ${vol}</span>
+            <span>Vol: <span class="kalshi-meta-strong">${vol}</span></span>
             <span>Closes: ${closeDate}</span>
           </div>
           <a class="kalshi-market-link" href="${targetUrl}" target="_blank" rel="noopener">Trade on Kalshi →</a>
