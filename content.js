@@ -317,6 +317,11 @@
     }
   });
 
+  // warm cache immediately to cut first-load delay
+  chrome.runtime.sendMessage({ type: "WARM_CACHE" }, () => {
+    // ignore result
+  });
+
   processPage();
 
   const observer = new MutationObserver(() => {

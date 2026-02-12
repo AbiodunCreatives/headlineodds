@@ -5,7 +5,7 @@ const KALSHI_APIS = [
   "https://api.kalshi.com/trade-api/v2",
 ];
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-const MAX_EVENT_PAGES = 6;
+const MAX_EVENT_PAGES = 4; // trim for faster first fetch
 const EVENTS_PAGE_LIMIT = 200;
 const FETCH_TIMEOUT_MS = 10000;
 
@@ -202,6 +202,13 @@ function findMatches(headline, markets) {
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === "WARM_CACHE") {
+    getAllMarkets()
+      .then((markets) => sendResponse({ ok: true, marketCount: markets.length, api: marketsCache.api }))
+      .catch((err) => sendResponse({ ok: false, error: err.message }));
+    return true;
+  }
+
   if (msg.type !== "MATCH_HEADLINES") return;
 
   getAllMarkets()
