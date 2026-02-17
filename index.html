@@ -229,7 +229,14 @@
     
         <div class="card">
           <h2>Get early access</h2>
-          <form id="waitlistForm" class="field">
+          <p>Be the first to try Headline Odds. We’ll only email for launch.</p>
+
+          <form
+            id="waitlistForm"
+            class="field"
+            action="https://formspree.io/f/mkovoozo"
+            method="POST"
+          >
             <input class="input" type="text" name="name" placeholder="Name" />
             <input
               class="input"
@@ -244,6 +251,10 @@
           <div id="successMessage" class="success">
             You’re in. We’ll email you when access opens.
           </div>
+
+          <p class="fine">
+            By joining, you agree to receive product updates. No spam, ever.
+          </p>
         </div>
       </div>
     </div>
@@ -254,27 +265,29 @@
 
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
+        success.classList.remove("show");
         const formData = new FormData(form);
 
         try {
-          const res = await fetch("https://formspree.io/f/mkovoozo", {
-            method: "POST",
+          const res = await fetch(form.action, {
+            method: form.method,
             body: formData,
-            headers: {
-              Accept: "application/json",
-            },
+            headers: { Accept: "application/json" },
           });
 
           if (res.ok) {
             form.reset();
             success.classList.add("show");
+            return;
           }
+
+          // If Formspree blocks AJAX (e.g., CAPTCHA required), fall back to native submit
+          form.submit();
         } catch (err) {
-          console.error("Form submit failed", err);
+          console.error("Form submit failed, falling back to native submit", err);
+          form.submit();
         }
       });
     </script>
   </body>
 </html>
-
-
