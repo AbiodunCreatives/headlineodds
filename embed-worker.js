@@ -1,15 +1,4 @@
 // embed-worker.js — Cloudflare Worker for semantic text embeddings
-// ---------------------------------------------------------------
-// DEPLOY STEPS:
-//   1. Go to https://workers.cloudflare.com → Create Worker
-//   2. Paste this file, then click "Save & Deploy"
-//   3. In the Worker settings → Bindings → Add → AI binding named "AI"
-//   4. Copy the Worker URL (e.g. https://headline-embed.YOUR-NAME.workers.dev)
-//   5. Paste it into EMBED_API_URL in background.js
-//   6. Add the URL to host_permissions in manifest.json
-//
-// Model: @cf/baai/bge-small-en-v1.5  (384-dim, free tier)
-// Cloudflare free tier: 10,000 neurons/day — more than enough for this use.
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",

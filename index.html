@@ -89,8 +89,39 @@
     .nav-links { display: flex; align-items: center; gap: 32px; }
     .nav-link { font-size: 14px; color: var(--muted); font-weight: 500; transition: color 180ms; }
     .nav-link:hover { color: var(--text); }
-    .nav-ctas { display: flex; align-items: center; gap: 10px; }
+    .nav-ctas { display: flex; align-items: center; gap: 10px; position: relative; }
     .nav-btn { padding: 9px 18px; font-size: 13px; }
+
+    /* ── NAV NOTIFY POPOVER ──────────────── */
+    .nav-popover {
+      position: absolute; top: calc(100% + 12px); right: 0;
+      background: #0e1310; border: 1px solid var(--border);
+      border-radius: 16px; padding: 20px; width: 272px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.55);
+      z-index: 200;
+    }
+    .nav-popover[hidden] { display: none; }
+    .nav-popover-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .nav-popover-sub { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+    .nav-popover-form { display: flex; flex-direction: column; gap: 8px; }
+    .nav-popover-form .input { font-size: 13px; padding: 10px 14px; border-radius: 10px; }
+    .nav-popover-form .btn { font-size: 13px; padding: 10px 16px; }
+    .nav-popover-success { font-size: 13px; color: var(--green); font-weight: 600; text-align: center; padding: 6px 0; }
+
+    /* ── INSTALL STATUS BADGE ────────────── */
+    .install-status {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(255,193,7,0.08); border: 1px solid rgba(255,193,7,0.22);
+      border-radius: 999px; padding: 8px 16px; font-size: 13px;
+      color: #ffc107; font-weight: 600; width: 100%; justify-content: center;
+    }
+    .status-dot-pending {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #ffc107; flex-shrink: 0;
+      animation: pending-p 2s ease-in-out infinite;
+    }
+    @keyframes pending-p { 0%,100% { opacity: 0.55; } 50% { opacity: 1; box-shadow: 0 0 8px rgba(255,193,7,0.9); } }
+    .install-coming-soon { font-size: 13px; color: var(--muted); text-align: center; line-height: 1.6; }
 
     /* ── LAYOUT ──────────────────────────── */
     section { position: relative; z-index: 1; }
@@ -442,7 +473,16 @@
     </div>
     <div class="nav-ctas">
       <a href="#waitlist" class="btn btn-ghost nav-btn">Waitlist</a>
-      <a href="CHROME_STORE_URL_PLACEHOLDER" class="btn btn-primary nav-btn" target="_blank" rel="noopener">Get Extension</a>
+      <button class="btn btn-primary nav-btn" id="navNotifyBtn" type="button">Notify Me</button>
+      <div class="nav-popover" id="navPopover" hidden>
+        <p class="nav-popover-title">Get notified at launch</p>
+        <p class="nav-popover-sub">We'll email you the moment it's live.</p>
+        <form id="navNotifyForm" class="nav-popover-form" action="https://formspree.io/f/mkovoozo" method="POST">
+          <input class="input" type="email" name="email" placeholder="your@email.com" required autocomplete="email" />
+          <button class="btn btn-primary" type="submit">Notify me</button>
+        </form>
+        <p class="nav-popover-success" id="navNotifySuccess" hidden>You're in. We'll email you when we launch!</p>
+      </div>
     </div>
   </nav>
 
@@ -457,8 +497,8 @@
           <h1>The news,<br>with the <span class="grad">odds.</span></h1>
           <p class="hero-sub">Real-time prediction market probabilities next to every headline you read. No tab switching. No searching.</p>
           <div class="hero-ctas">
-            <a href="CHROME_STORE_URL_PLACEHOLDER" class="btn btn-primary btn-lg" target="_blank" rel="noopener">Get for Chrome — Free</a>
-            <a href="#waitlist" class="btn btn-ghost btn-lg">Join Waitlist</a>
+            <a href="#waitlist" class="btn btn-primary btn-lg">Request Early Access →</a>
+            <a href="#how" class="btn btn-ghost btn-lg">See how it works</a>
           </div>
         </div>
         <div>
@@ -778,7 +818,7 @@
     <div class="cta-glow"></div>
     <div class="cta-inner">
       <h2>Read the news<br><span class="grad">with the odds.</span></h2>
-      <p class="cta-sub">Install the extension or join the waitlist for early access.</p>
+      <p class="cta-sub">Pending Chrome Web Store review. Join the waitlist to be first in line when we launch.</p>
       <div class="cta-cols">
         <div class="install-box fade">
           <img src="logo.png" class="install-logo" alt="Headline Odds" width="56" height="56" />
@@ -786,8 +826,11 @@
             <div class="install-name">Headline Odds</div>
             <div class="install-note">Free Chrome Extension</div>
           </div>
-          <a href="CHROME_STORE_URL_PLACEHOLDER" class="btn btn-primary btn-lg" target="_blank" rel="noopener" style="width:100%;">Get for Chrome — Free</a>
-          <span class="install-note">Available on the Chrome Web Store</span>
+          <div class="install-status">
+            <span class="status-dot-pending"></span>
+            Pending Web Store Review
+          </div>
+          <p class="install-coming-soon">Join the waitlist to get notified<br>the moment it's available.</p>
         </div>
         <div class="waitlist-box fade fade-d1">
           <h3>Join the waitlist</h3>
@@ -842,6 +885,34 @@
         document.querySelectorAll(".faq-item.open").forEach(i => i.classList.remove("open"));
         if (!wasOpen) item.classList.add("open");
       });
+    });
+
+    // Nav notify popover
+    const navNotifyBtn = document.getElementById("navNotifyBtn");
+    const navPopover = document.getElementById("navPopover");
+    const navNotifyForm = document.getElementById("navNotifyForm");
+    const navNotifySuccess = document.getElementById("navNotifySuccess");
+
+    navNotifyBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      navPopover.hidden = !navPopover.hidden;
+      if (!navPopover.hidden) navPopover.querySelector("input[type=email]").focus();
+    });
+    document.addEventListener("click", () => { navPopover.hidden = true; });
+    navPopover.addEventListener("click", (e) => e.stopPropagation());
+    navNotifyForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        const res = await fetch(navNotifyForm.action, { method: "POST", body: new FormData(navNotifyForm), headers: { Accept: "application/json" } });
+        if (res.ok) {
+          navNotifyForm.reset();
+          navNotifyForm.hidden = true;
+          navNotifySuccess.hidden = false;
+          setTimeout(() => { navPopover.hidden = true; navNotifyForm.hidden = false; navNotifySuccess.hidden = true; }, 3200);
+          return;
+        }
+        navNotifyForm.submit();
+      } catch { navNotifyForm.submit(); }
     });
 
     // Waitlist form
