@@ -493,28 +493,34 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type !== "MATCH_HEADLINES") return;
 
   getAllMarkets()
-    .then(async (markets) => {
-      // Batch-embed all headlines that aren't cached yet (one round-trip to CF Worker)
-      if (EMBED_API_URL) {
-        const toEmbed = [...new Set(msg.headlines)].filter(
-          (h) => !headlineEmbeddings.has(h)
-        );
-        if (toEmbed.length > 0) {
-          const vecs = await fetchEmbeddings(toEmbed);
-          if (vecs) {
-            toEmbed.forEach((h, i) => {
-              if (vecs[i]) headlineEmbeddings.set(h, new Float32Array(vecs[i]));
-            });
-          }
-        }
-      }
-
+    .then((markets) => {
+      // Score immediately using whatever embeddings are already in cache.
+      // Do NOT await fetchEmbeddings here — holding sendResponse open while
+      // waiting on an HTTP round-trip causes Chrome to terminate the service
+      // worker mid-await, dropping the message channel before we can respond.
       const results = {};
       for (const headline of msg.headlines) {
         const matches = findMatches(headline, markets);
         if (matches.length) results[headline] = matches;
       }
       sendResponse({ ok: true, results, marketCount: markets.length, api: marketsCache.api });
+
+      // Fire-and-forget: embed headlines in the background so the NEXT
+      // processPage() scan (200ms debounce) benefits from vector scores.
+      if (EMBED_API_URL) {
+        const toEmbed = [...new Set(msg.headlines)].filter(
+          (h) => !headlineEmbeddings.has(h)
+        );
+        if (toEmbed.length > 0) {
+          fetchEmbeddings(toEmbed).then((vecs) => {
+            if (vecs) {
+              toEmbed.forEach((h, i) => {
+                if (vecs[i]) headlineEmbeddings.set(h, new Float32Array(vecs[i]));
+              });
+            }
+          });
+        }
+      }
     })
     .catch((err) => {
       console.error("Kalshi fetch error:", err);
