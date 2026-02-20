@@ -12,8 +12,10 @@ const FETCH_TIMEOUT_MS = 10000;
 let marketsCache = { data: [], ts: 0, api: null };
 
 // Keep the MV3 service worker alive so content scripts can always reach it
-chrome.alarms.create("keepalive", { periodInMinutes: 0.4 });
-chrome.alarms.onAlarm.addListener(() => {}); // wakes the SW on each tick
+chrome.alarms.create("keepalive", { periodInMinutes: 1 });
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === "keepalive") return; // just wake the SW
+});
 
 function log(...args) {
   console.log("[Kalshi BG]", ...args);

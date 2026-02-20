@@ -24,7 +24,6 @@
   const headlinePills = new Map(); // headline -> pill
   const headlineMarkets = new Map(); // headline -> last good markets
   const headlineHosts = new Map(); // headline -> host element
-  let lastLogTs = 0;
   let activeCard = null;
   const LOGO_URL = chrome.runtime.getURL("logo.png");
   // Use root icon because only root icons are web-accessible; avoids 404 on fallback
@@ -57,7 +56,7 @@
   function createFetchingPill() {
     const pill = document.createElement("span");
     pill.className = "kalshi-odds-pill kalshi-pill-fetching";
-    pill.textContent = "Market odds";
+    pill.innerHTML = `<span class="kalshi-pill-live" aria-hidden="true"></span><span class="kalshi-pill-text">odds</span>`;
     pill.setAttribute("role", "button");
     pill.tabIndex = 0;
     pill.setAttribute("aria-live", "polite");
@@ -87,8 +86,11 @@
 
     pill.style.display = "inline-flex";
 
-    pill.innerHTML = `<span class="kalshi-pill-icon"></span><span class="kalshi-pill-text">Market odds</span>`;
-    pill.title = "View Kalshi market odds";
+    const topMarket = data[0];
+    const yesPrice = topMarket.yes_bid != null ? topMarket.yes_bid : topMarket.last_price;
+    const yesLabel = yesPrice != null ? `${yesPrice}¢` : "—";
+    pill.innerHTML = `<span class="kalshi-pill-live" aria-hidden="true"></span><span class="kalshi-pill-yes">${yesLabel}</span><span class="kalshi-pill-label">yes</span>`;
+    pill.title = `Yes: ${yesLabel} · Click to see market odds`;
     pill._marketData = data;
     pill._card = null; // force rebuild if data changed
     const openCard = (e) => {
@@ -159,7 +161,7 @@
     card.innerHTML = `
       <div class="kalshi-card-header">
         <div class="kalshi-card-title">
-          <img src="${LOGO_URL}" onerror="this.src='${FALLBACK_LOGO_URL}'" alt="logo" class="kalshi-card-logo-img" />
+          <img src="${LOGO_URL}" alt="logo" class="kalshi-card-logo-img" />
           <span>ODDS ON THIS STORY</span>
         </div>
         <button class="kalshi-card-close" aria-label="Close">✕</button>
@@ -174,6 +176,10 @@
       <a class="kalshi-cta" href="${normalizeKalshiUrl(marketData[0].url, marketData[0].ticker, marketData[0].series_ticker || marketData[0].event_ticker)}" target="_blank" rel="noopener">View market</a>
       <div class="kalshi-powered">Powered by <span>Kalshi</span></div>
     `;
+    const logoImg = card.querySelector(".kalshi-card-logo-img");
+    if (logoImg) {
+      logoImg.addEventListener("error", () => { logoImg.src = FALLBACK_LOGO_URL; }, { once: true });
+    }
     // defensive: ensure no pills render inside card
     card.querySelectorAll(".kalshi-odds-pill").forEach((p) => p.remove());
 
@@ -202,7 +208,11 @@
       const noPrice = m.no_bid != null ? m.no_bid : yesPrice != null ? 100 - yesPrice : null;
       const yesPct = yesPrice != null ? `${yesPrice}\u00a2` : "—";
       const noPct = noPrice != null ? `${noPrice}\u00a2` : "—";
-      const vol = m.volume != null ? `$${m.volume.toLocaleString()}` : "—";
+      // volume is in contracts; multiply by price (cents) / 100 to get dollar volume
+      const price = m.last_price ?? m.yes_bid ?? 50;
+      const vol = m.volume != null
+        ? `$${Math.round(m.volume * price / 100).toLocaleString()}`
+        : "—";
       const closeDate = m.close_time
         ? new Date(m.close_time).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
         : "—";
@@ -365,14 +375,6 @@
       }
       if (response && response.ok && response.results) {
         injectResults(response.results);
-        const now = Date.now();
-        if (now - lastLogTs > 10000) {
-          const hitCount = Object.keys(response.results || {}).length;
-          console.log(
-            `Kalshi extension: matched ${hitCount} headlines; markets ${response.marketCount || "?"} via ${response.api || "?"}`
-          );
-          lastLogTs = now;
-        }
       } else {
         injectResults({}, true);
       }
@@ -398,6 +400,7 @@
     observer._debounce = setTimeout(processPage, 200);
   });
   observer.observe(document.body, { childList: true, subtree: true });
+  window.addEventListener("beforeunload", () => observer.disconnect(), { once: true });
 })();
 
 // Normalize a Kalshi market URL defensively (used by content and background responses)

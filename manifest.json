@@ -1,14 +1,17 @@
 {
   "manifest_version": 3,
   "name": "Headline Odds",
+  "short_name": "Headline Odds",
   "version": "1.0.0",
-  "description": "Shows real-time Kalshi prediction market odds next to news headlines",
-  "permissions": ["storage", "alarms"],
+  "description": "See real-time Kalshi prediction market odds directly next to news headlines as you browse.",
+  "permissions": ["alarms"],
   "host_permissions": [
     "https://api.elections.kalshi.com/*",
-    "https://api.kalshi.com/*",
-    "https://kalshi.com/*"
+    "https://api.kalshi.com/*"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
+  },
   "background": {
     "service_worker": "background.js"
   },
