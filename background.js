@@ -149,6 +149,130 @@ async function getAllMarkets() {
   return allMarkets;
 }
 
+// ---------------------------------------------------------------------------
+// Semantic topic clusters — groups of related terms so that cross-vocabulary
+// headline↔market pairs (e.g. "Fed" headline ↔ "Federal Reserve" market) get
+// a meaningful score boost even when exact keywords don't overlap.
+// ---------------------------------------------------------------------------
+const SEMANTIC_CLUSTERS = [
+  {
+    id: "fed_monetary",
+    terms: [
+      "federal reserve", "fed", "fomc", "interest rate", "rate hike", "rate cut",
+      "monetary policy", "powell", "central bank", "quantitative easing", "qe",
+      "federal funds", "basis points", "tightening", "easing", "inflation",
+      "cpi", "pce", "deflation", "stagflation", "yellen", "treasury",
+    ],
+  },
+  {
+    id: "us_president",
+    terms: [
+      "president", "white house", "oval office", "trump", "biden", "harris", "obama",
+      "executive order", "veto", "administration", "cabinet", "inauguration",
+      "impeach", "resign", "pardon", "presidential",
+    ],
+  },
+  {
+    id: "us_elections",
+    terms: [
+      "election", "vote", "ballot", "primary", "candidate", "democrat", "republican",
+      "senate", "senator", "congress", "house", "representative", "polling", "poll",
+      "midterm", "runoff", "swing state", "electoral", "campaign", "nomination",
+      "gop", "dnc", "rnc",
+    ],
+  },
+  {
+    id: "crypto",
+    terms: [
+      "bitcoin", "btc", "ethereum", "eth", "cryptocurrency", "crypto",
+      "blockchain", "defi", "nft", "solana", "sol", "xrp", "ripple",
+      "coinbase", "binance", "altcoin", "stablecoin", "usdc", "usdt",
+      "tether", "digital asset", "token", "crypto regulation",
+    ],
+  },
+  {
+    id: "ai_tech",
+    terms: [
+      "artificial intelligence", "ai model", "large language model", "llm",
+      "chatgpt", "gpt", "openai", "anthropic", "claude", "gemini", "grok",
+      "nvidia", "semiconductor", "chip", "gpu", "microsoft", "google", "meta",
+      "apple", "amazon", "agi", "machine learning", "deepseek",
+    ],
+  },
+  {
+    id: "geopolitics",
+    terms: [
+      "ukraine", "russia", "nato", "china", "taiwan", "middle east",
+      "israel", "iran", "north korea", "sanctions", "military", "war",
+      "ceasefire", "peace talks", "missile", "nuclear", "troops",
+      "invasion", "conflict", "diplomacy", "treaty", "alliance", "putin", "zelensky",
+    ],
+  },
+  {
+    id: "markets_economy",
+    terms: [
+      "stock market", "dow jones", "nasdaq", "sp500", "wall street",
+      "recession", "gdp", "unemployment", "jobs report", "earnings",
+      "ipo", "merger", "acquisition", "bankruptcy", "tariff", "trade war",
+      "debt ceiling", "fiscal", "stimulus", "economic growth", "labor market",
+    ],
+  },
+  {
+    id: "sports",
+    terms: [
+      "nfl", "super bowl", "nba", "nba finals", "world series", "mlb",
+      "world cup", "fifa", "nhl", "stanley cup", "masters", "wimbledon",
+      "us open", "olympics", "championship", "playoff", "bracket",
+    ],
+  },
+  {
+    id: "climate_energy",
+    terms: [
+      "climate", "carbon", "emissions", "renewable energy", "solar", "wind power",
+      "oil", "crude", "opec", "natural gas", "lng", "gasoline", "petroleum",
+      "paris accord", "net zero", "clean energy", "electric vehicle",
+    ],
+  },
+  {
+    id: "health_pharma",
+    terms: [
+      "fda", "approval", "drug", "vaccine", "pharmaceutical", "biotech",
+      "clinical trial", "pfizer", "moderna", "medicare", "medicaid",
+      "healthcare", "covid", "pandemic", "who", "cancer", "treatment",
+    ],
+  },
+  {
+    id: "legal_justice",
+    terms: [
+      "supreme court", "scotus", "ruling", "lawsuit", "indictment", "trial",
+      "verdict", "conviction", "acquittal", "appeal", "attorney general",
+      "doj", "fbi", "department of justice", "constitution", "amendment",
+    ],
+  },
+  {
+    id: "elon_musk_doge",
+    terms: [
+      "elon musk", "musk", "tesla", "spacex", "starlink", "twitter", "x corp",
+      "doge", "department of government efficiency", "xai",
+    ],
+  },
+];
+
+/** Return the set of cluster IDs that the given text belongs to. */
+function getClusters(text) {
+  const lower = text.toLowerCase();
+  const matched = new Set();
+  for (const cluster of SEMANTIC_CLUSTERS) {
+    for (const term of cluster.terms) {
+      if (lower.includes(term)) {
+        matched.add(cluster.id);
+        break; // one term hit is enough per cluster
+      }
+    }
+  }
+  return matched;
+}
+
 function extractKeywords(text) {
   const stopWords = new Set([
     "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
@@ -177,7 +301,7 @@ function extractKeywords(text) {
     .filter((w) => w.length > 2 && !stopWords.has(w));
 }
 
-function scoreMatch(headlineKw, market) {
+function scoreMatch(headlineKw, headlineClusters, market) {
   const marketText = [
     market.title,
     market.subtitle,
@@ -198,7 +322,22 @@ function scoreMatch(headlineKw, market) {
     }
   }
 
-  if (matches < 2) return 0;
+  // Semantic cluster bonus: if headline and market share a topic cluster, boost
+  // the score significantly — this handles cross-vocabulary matches like
+  // "Powell signals pause" ↔ "Will the Fed hold rates steady?"
+  const marketClusters = getClusters(marketText);
+  let clusterBonus = 0;
+  for (const c of headlineClusters) {
+    if (marketClusters.has(c)) {
+      clusterBonus = 0.4;
+      break;
+    }
+  }
+
+  // Require at least one signal to proceed
+  if (matches === 0 && clusterBonus === 0) return 0;
+  // Pure cluster match (no keyword overlap) — low but non-zero score
+  if (matches === 0) return clusterBonus * 0.5;
 
   const bonus = matched.reduce((sum, kw) => sum + (kw.length > 5 ? 0.1 : 0), 0);
 
@@ -217,15 +356,18 @@ function scoreMatch(headlineKw, market) {
     if (hours > 0 && hours < 24 * 7) recency = 0.2;
   }
 
-  return matches / headlineKw.length + bonus + bigramBonus + recency;
+  return matches / headlineKw.length + bonus + bigramBonus + clusterBonus + recency;
 }
 
 function findMatches(headline, markets) {
   const headlineKw = extractKeywords(headline);
-  if (headlineKw.length < 2) return [];
+  const headlineClusters = getClusters(headline);
+
+  // Need at least one keyword or one cluster match to be worth scoring
+  if (headlineKw.length < 1 && headlineClusters.size === 0) return [];
 
   const scored = markets
-    .map((m) => ({ market: m, score: scoreMatch(headlineKw, m) }))
+    .map((m) => ({ market: m, score: scoreMatch(headlineKw, headlineClusters, m) }))
     .filter((s) => s.score > 0.15)
     .sort((a, b) => b.score - a.score)
     .slice(0, 3);
