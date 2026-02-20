@@ -16,7 +16,7 @@ let marketsCache = { data: [], ts: 0, api: null };
 // Set EMBED_API_URL to your deployed Worker URL to enable vector matching.
 // Leave as null to use keyword + cluster matching only (still works great).
 // ---------------------------------------------------------------------------
-const EMBED_API_URL = null; // "https://headline-embed.YOUR-NAME.workers.dev"
+const EMBED_API_URL = "https://headline-embed.abiodunfaboyode007.workers.dev";
 
 let marketEmbeddings = new Map(); // ticker → Float32Array
 let headlineEmbeddings = new Map(); // headline text → Float32Array
