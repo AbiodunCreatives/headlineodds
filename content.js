@@ -81,7 +81,7 @@
     return pill;
   }
 
-  function updatePill(pill, headline, markets, isError = false) {
+  function updatePill(pill, headline, markets) {
     // preserve last successful markets so the pill doesn't vanish on transient misses
     if (markets && markets.length) {
       headlineMarkets.set(headline, markets);
@@ -92,10 +92,7 @@
     pill.removeAttribute("aria-disabled");
 
     if (!data || !data.length) {
-      pill.style.display = "inline-flex";
-      pill.classList.add(isError ? "kalshi-pill-error" : "kalshi-pill-empty");
-      pill.textContent = isError ? "Kalshi unavailable" : "No market yet";
-      pill.title = isError ? "Unable to reach Kalshi right now" : "No matching market found yet";
+      pill.style.display = "none"; // hide cleanly — don't clutter the headline
       pill.onclick = null;
       pill.onkeydown = null;
       pill.setAttribute("aria-disabled", "true");
@@ -391,10 +388,10 @@
     }
   }
 
-  function injectResults(results, isError = false) {
+  function injectResults(results) {
     for (const [headline, pill] of headlinePills.entries()) {
       const markets = results && results[headline];
-      updatePill(pill, headline, markets, isError);
+      updatePill(pill, headline, markets);
     }
   }
 
@@ -405,18 +402,26 @@
     ensurePills(headlineMap);
     pruneRemovedPills();
 
-    chrome.runtime.sendMessage({ type: "MATCH_HEADLINES", headlines }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.warn("Kalshi extension:", chrome.runtime.lastError.message);
-        injectResults({}, true); // clear fetching state on error so pills don't hang
-        return;
-      }
-      if (response && response.ok && response.results) {
-        injectResults(response.results);
-      } else {
-        injectResults({}, true);
-      }
-    });
+    const sendMatch = (attempt) => {
+      chrome.runtime.sendMessage({ type: "MATCH_HEADLINES", headlines }, (response) => {
+        if (chrome.runtime.lastError) {
+          if (attempt < 2) {
+            // SW was sleeping — give it 1.5s to wake then retry once
+            setTimeout(() => sendMatch(attempt + 1), 1500);
+          } else {
+            console.warn("[Headline Odds]", chrome.runtime.lastError.message);
+            injectResults({}); // hide all fetching pills cleanly
+          }
+          return;
+        }
+        if (response && response.ok && response.results) {
+          injectResults(response.results);
+        } else {
+          injectResults({});
+        }
+      });
+    };
+    sendMatch(1);
   }
 
   document.addEventListener("click", (e) => {
