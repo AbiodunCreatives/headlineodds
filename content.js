@@ -21,7 +21,7 @@
   const MIN_HEADLINE_LEN = 20;
   const MAX_HEADLINE_LEN = 300;
 
-  // ── Divergence detection ───────────────────────────────────
+  // ── Divergence detection ───
   const CONFIDENT_PHRASES = [
     "set to ", "will ", "confirms", "confirmed", "signals", "expected to",
     "poised to", "on track", "heading for", "secures", "seals", "clinches",
@@ -253,7 +253,7 @@
         <div class="kalshi-market-item">
           <div class="kalshi-market-title">${escapeHtml(m.title)}</div>
           ${m.subtitle ? `<div class="kalshi-market-subtitle">${escapeHtml(m.subtitle)}</div>` : ""}
-          <div class="kalshi-market-odds list">
+          <div class="kalshi-market-odds">
             <a class="kalshi-odd kalshi-yes" href="${targetUrl}" target="_blank" rel="noopener">
               <span class="kalshi-odd-label">Yes</span>
               <span class="kalshi-odd-multiplier">${m.yes_bid && m.no_bid ? `${(100 / m.yes_bid).toFixed(2)}x` : ""}</span>
@@ -282,7 +282,7 @@
         const tweetText = `"${shortHeadline}"\n\nMarket says: ${yesPct} yes\n\nvia @headlineodds 🟢\nheadlineodds.fun`;
         shareBtn.href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
       }
-
+  
       if (indexEl) indexEl.textContent = `${idx + 1}/${marketData.length}`;
       if (prevBtn) prevBtn.disabled = idx === 0;
       if (nextBtn) nextBtn.disabled = idx === marketData.length - 1;
@@ -433,7 +433,7 @@
 
   // warm cache immediately to cut first-load delay
   chrome.runtime.sendMessage({ type: "WARM_CACHE" }, () => {
-    // ignore result
+    void chrome.runtime.lastError;
   });
 
   processPage();
@@ -444,43 +444,41 @@
   });
   observer.observe(document.body, { childList: true, subtree: true });
   window.addEventListener("beforeunload", () => observer.disconnect(), { once: true });
+
+  function normalizeKalshiUrl(url, ticker, seriesTicker) {
+    if (url && url.startsWith("http")) return url;
+    if (url && url.startsWith("/")) return `https://kalshi.com${url}`;
+    if (url && url.includes("/")) return `https://kalshi.com/markets/${url}`;
+
+    const eventSlug = (seriesTicker || "").toString();
+    const tickerSlug = (ticker || "").toString();
+
+    if (eventSlug) return `https://kalshi.com/markets/${eventSlug}`;
+    if (tickerSlug) return `https://kalshi.com/markets/${tickerSlug}`;
+    return "https://kalshi.com/markets";
+  }
+
+  function trapFocus(container) {
+    const focusable = Array.from(
+      container.querySelectorAll('a[href], button, [tabindex]:not([tabindex="-1"])')
+    ).filter((el) => !el.hasAttribute("disabled"));
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    container.addEventListener("keydown", (e) => {
+      if (e.key !== "Tab") return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    });
+  }
 })();
-
-// Normalize a Kalshi market URL defensively (used by content and background responses)
-function normalizeKalshiUrl(url, ticker, seriesTicker) {
-  if (url && url.startsWith("http")) return url;
-  if (url && url.startsWith("/")) return `https://kalshi.com${url}`;
-  if (url && url.includes("/")) return `https://kalshi.com/markets/${url}`;
-
-  // Kalshi uses /markets/{series_ticker} — single segment, redirects to full SEO URL
-  const eventSlug = (seriesTicker || "").toString();
-  const tickerSlug = (ticker || "").toString();
-
-  if (eventSlug) return `https://kalshi.com/markets/${eventSlug}`;
-  if (tickerSlug) return `https://kalshi.com/markets/${tickerSlug}`;
-  return "https://kalshi.com/markets";
-}
-
-function trapFocus(container) {
-  const focusable = Array.from(
-    container.querySelectorAll('a[href], button, [tabindex]:not([tabindex="-1"])')
-  ).filter((el) => !el.hasAttribute("disabled"));
-  if (!focusable.length) return;
-  const first = focusable[0];
-  const last = focusable[focusable.length - 1];
-
-  container.addEventListener("keydown", (e) => {
-    if (e.key !== "Tab") return;
-    if (e.shiftKey) {
-      if (document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      }
-    } else {
-      if (document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    }
-  });
-}
